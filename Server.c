@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <pthread.h>
 
+
 #define MAX_CLIENT 10
 #define MAX_LENGHT 100
 
@@ -30,19 +31,21 @@ void *routine(void *arg)
 {
     int n = *((int *)arg);
 
-    char *buf[MAX_LENGHT];
+    char buf[MAX_LENGHT];
 
-    if (read(clients[n].sockfd, buf, MAX_LENGHT) == -1)
+    if (read(clients[n].sockfd, &buf, MAX_LENGHT) == -1)
     {
         fprintf(stderr, "read from %d socket: %s\n", clients[n].sockfd, strerror(errno));
-        return;
+        pthread_exit(NULL);
     }
 
-    if (write(clients[n].sockfd, buf, strlen(buf)) == -1)
+    if (write(clients[n].sockfd, &buf, strlen(buf)) == -1)
     {
-        fprintf(stderr, "write to %d socket: %s\n", clients[n].sockfd, strerror(errno));
-        return;
+        fprintf(stderr, "write to %d socket: %s", clients[n].sockfd, strerror(errno));
+        pthread_exit(NULL);
     }
+
+    printf("Received line from %d socket: %s", clients[n].sockfd, buf);
 
     pthread_mutex_lock(&mutex);
     clients[n].flag = 1;
@@ -123,7 +126,7 @@ int main(int argc, char **argv)
 
         clients[curN].n = curN;
 
-        if (pthread_create(clients[curN].thread, NULL, routine, (void *)&clients[curN].n) == -1)
+        if (pthread_create(&clients[curN].thread, NULL, routine, (void *)&clients[curN].n) == -1)
         {
             perror("pthread_create");
             close(sockfd);
