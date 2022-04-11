@@ -10,6 +10,7 @@
 #include <pthread.h>
 
 #define MAX_CLIENT 10
+#define MAX_LENGHT 100
 
 struct client
 {
@@ -23,8 +24,31 @@ struct client
 
 struct client clients[MAX_CLIENT];
 
-void *routine()
+pthread_mutex_t mutex;
+
+void *routine(void *arg)
 {
+    int n = *((int *)arg);
+
+    char *buf[MAX_LENGHT];
+
+    if (read(clients[n].sockfd, buf, MAX_LENGHT) == -1)
+    {
+        fprintf(stderr, "read from %d socket: %s\n", clients[n].sockfd, strerror(errno));
+        return;
+    }
+
+    if (write(clients[n].sockfd, buf, strlen(buf)) == -1)
+    {
+        fprintf(stderr, "write to %d socket: %s\n", clients[n].sockfd, strerror(errno));
+        return;
+    }
+
+    pthread_mutex_lock(&mutex);
+    clients[n].flag = 1;
+    pthread_mutex_unlock(&mutex);
+
+    pthread_exit(NULL);
 }
 
 int main(int argc, char **argv)
@@ -62,6 +86,12 @@ int main(int argc, char **argv)
 
     int curN;
 
+    if (pthread_mutex_init(&mutex, NULL) == -1)
+    {
+        perror("pthread_mutex_init");
+        return 6;
+    }
+
     while (1)
     {
         curN = -1;
@@ -78,18 +108,27 @@ int main(int argc, char **argv)
         if ((clients[curN].sockfd = accept(sockfd, (struct sockaddr *)&clients[curN].cliaddr, &clients[curN].len)) < 0)
         {
             perror("accept");
+
+            for (int i = 0; i < MAX_CLIENT; i++)
+                if (clients[i].flag == 1)
+                    close(clients[i].sockfd);
+
             close(sockfd);
             return 4;
         }
 
+        pthread_mutex_lock(&mutex);
+        clients[curN].flag = 1;
+        pthread_mutex_unlock(&mutex);
+
         clients[curN].n = curN;
+
         if (pthread_create(clients[curN].thread, NULL, routine, (void *)&clients[curN].n) == -1)
         {
             perror("pthread_create");
             close(sockfd);
             return 5;
         }
-        clients[curN].flag = 1;
     }
 
     return 0;
