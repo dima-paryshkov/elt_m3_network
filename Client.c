@@ -6,10 +6,11 @@
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #define MAX_LENGHT 100
 
-void main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     int sockfd;
     int n;
@@ -19,7 +20,7 @@ void main(int argc, char **argv)
 
     if (argc != 2)
     {
-        printf("Usage: a.out <IP address>\n");
+        printf("Usage: bin/Client <IP address>\n");
         return 1;
     }
 
@@ -69,7 +70,7 @@ void main(int argc, char **argv)
         return 4;
     }
     
-    bzero(buf, 1000);
+    bzero(buf, MAX_LENGHT);
 
     if ((n = read(sockfd, buf, MAX_LENGHT)) == -1)
     {
